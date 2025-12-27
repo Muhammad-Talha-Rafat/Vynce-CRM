@@ -111,8 +111,9 @@
 
     .bg-img-1 {
         position: absolute;
+        height: 100vh;
         bottom: 0px;
-        left: -500px;
+        right: 0px;
         z-index: -1;
         overflow: hidden;
         pointer-events: none;
@@ -121,10 +122,11 @@
 
     .bg-img-2 {
         position: absolute;
-        top: -250px;
-        right: -325px;
+        height: 100vh;
+        top: 0px;
+        left: 0px;
+        z-index: -1;
         pointer-events: none;
         mix-blend-mode: screen;
     }
-
 }

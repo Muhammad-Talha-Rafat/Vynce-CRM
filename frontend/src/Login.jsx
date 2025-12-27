@@ -1,28 +1,60 @@
 
 import { Copyrights } from './Footer'
 import './css/Login.css'
-import {Link} from 'react-router-dom'
 import favicon from './assets/favicon.svg'
-import bg_obj_1 from './assets/login.png'
-import bg_obj_2 from './assets/signup.png'
+import bg_obj_1 from './assets/auth_bg_1.png'
+import bg_obj_2 from './assets/auth_bg_2.png'
+import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import toast from 'react-hot-toast'
 
 function Login() {
+
+    useEffect(() => {
+        let link = document.querySelector("link[rel='icon']");
+        link.href = favicon;
+        document.title = "Vynce | More Than a CRM";
+    });
+
+    const navigate = useNavigate();
+
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+
+    const handleLogin = (e) => {
+        e.preventDefault();
+        console.log("Form Submitted:", { email, password });
+        toast.success("User authenticated");
+        navigate("/");
+    }
+
+
     return (
         <div className="login">
-            <div class="content">
+            <div className="content">
                 <h2>Welcome back!</h2>
-                <p>Don't have an account? <Link to={"/signup"} class="highlight">Create one</Link></p>
-                <form class="login-form">
-                    <input type="email" placeholder="Email address" class="input-field" />
-                    <input type="password" placeholder="Password" class="input-field" />
-                    <div class="misc">
-                        <label class="checkbox-container">
+                <p>Don't have an account? <Link to={"/signup"} className="highlight">Create one</Link></p>
+                <form className="login-form" onSubmit={handleLogin}>
+                    <input
+                        type="email"
+                        placeholder="Email address"
+                        className="input-field"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)} />
+                    <input
+                        type="password"
+                        placeholder="Password"
+                        className="input-field"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)} />
+                    <div className="misc">
+                        <label className="checkbox-container">
                             <input type="checkbox" />
-                            <span class="checkmark">Remember me</span>
+                            <span className="checkmark">Remember me</span>
                         </label>
-                        <a class="highlight">Forgot Password?</a>
+                        <a className="highlight">Forgot Password?</a>
                     </div>
-                    <button type="submit" class="login-btn">Login</button>
+                    <button type="submit" className="login-btn">Login</button>
                 </form>
             </div>
             <img src={bg_obj_1} className="bg-img-1" />
