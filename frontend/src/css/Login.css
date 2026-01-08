@@ -64,6 +64,32 @@
                 }
             }
 
+            .password-wrapper {
+                position: relative;
+                width: 100%;
+
+                .input-field {
+                    width: 100%;
+                    padding-right: 40px;
+                }
+
+                .eye-icon {
+                    position: absolute;
+                    right: 12px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                }
+
+                .eye-icon img {
+                    width: 18px;
+                    height: 18px;
+                    pointer-events: none;
+                }
+            }
+
             .misc {
                 display: flex;
                 justify-content: space-between;

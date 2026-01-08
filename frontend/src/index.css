@@ -3,9 +3,15 @@
   src: url('./assets/fonts/Timun-bold.TTF');
 }
 
+@font-face {
+  font-family: 'Google';
+  src: url('./assets/fonts/Google.TTF');
+}
+
 
 :root {
-  --green: #99cc66
+  --green: #99cc66;
+  --red: #b31b1b;
 }
 
 ::selection {
