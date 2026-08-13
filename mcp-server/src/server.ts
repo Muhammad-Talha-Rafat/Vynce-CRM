@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { BASE, authToken } from "./config.js";
 import { tools } from "./tools.js";
@@ -8,30 +8,49 @@ import { prompts } from "./prompts.js";
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 
+interface ToolResult {
+    content: { type: "text"; text: string }[];
+    isError?: boolean;
+};
+
+type Method = "GET" | "POST" | "PATCH" | "DELETE";
+
 const server = new McpServer({ name: "vynce-crm", version: "1.0.0" });
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
-function headers() {
+function headers(): Record<string, string> {
     return {
         "Content-Type": "application/json",
         Authorization: `Bearer ${authToken}`
-    }
+    };
 }
 
-async function api(method, path, body) {
-    let res = await fetch(`${BASE}${path}`, {
-        method,
-        headers: headers(),
-        body: body ? JSON.stringify(body) : undefined
-    });
+async function api(method: Method, path: string, body?: unknown): Promise<ToolResult> {
+    let res: Response;
+    try {
+        const init: RequestInit = { method, headers: headers() };
+        if (body) init.body = JSON.stringify(body);
+        res = await fetch(`${BASE}${path}`, init);
+    } catch (err) {
+        const message = err instanceof Error ? err.message : "Unknown network error"
+        return {
+            content: [{ type: "text", text: `Request failed: ${message}` }],
+            isError: true
+        };
+    }
 
-    const data = await res.json();
+    const data: unknown = await res.json();
+
+    if (!res.ok) {
+        return {
+            content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+            isError: true
+        };
+    }
+
     return {
-        content: [{
-            type: "text",
-            text: JSON.stringify(data, null, 2)
-        }]
+        content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
     };
 }
 

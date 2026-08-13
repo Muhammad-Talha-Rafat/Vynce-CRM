@@ -220,6 +220,11 @@
         transform: translateY(-5px);
     }
 
+    &:focus-visible {
+        outline: 2px solid var(--green-glow);
+        outline-offset: 2px;
+    }
+
     &::before {
         content: '';
         position: absolute;
@@ -275,8 +280,8 @@
 /* ─── Ribbon ──────────────────────────────────────────────────────── */
 .ribbon {
     position: absolute;
-    top: 14px;
-    right: -1px;
+    top: 16px;
+    right: 0;
     font-size: 8px;
     font-family: var(--font-mono);
     font-weight: 700;
@@ -581,6 +586,11 @@
         box-shadow: 0 12px 36px rgba(200, 200, 200, 0.55), 0 0 28px rgba(0, 232, 122, 0.06);
     }
 
+    &:focus-visible {
+        outline: 2px solid var(--green-glow);
+        outline-offset: 2px;
+    }
+
     &::before {
         content: '';
         position: absolute;
@@ -611,23 +621,21 @@
     transform: none !important;
 }
 
-/* ─── ETH ribbon ──────────────────────────────────────────────────── */
-.ethRibbon {
-    position: absolute;
-    top: 16px;
-    right: -1px;
+/* ─── ETH "best value" badge ──────────────────────────────────────── */
+.ethBestBadge {
+    display: inline-flex;
+    align-self: flex-start;
     font-size: 8px;
     font-family: var(--font-mono);
     font-weight: 700;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    padding: 3px 10px 3px 8px;
-    border-radius: 4px 0 0 4px;
+    padding: 3px 9px;
+    border-radius: 20px;
     border: 1px solid var(--green-glow);
-    border-right: none;
     background: var(--green-dim);
     color: var(--green);
-    z-index: 5;
+    margin-bottom: 4px;
     user-select: none;
 }
 

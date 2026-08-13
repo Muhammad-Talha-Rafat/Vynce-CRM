@@ -1,10 +1,11 @@
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp";
 import { z } from "zod";
 import { PORT } from "./config.js";
 
 
-const dedent = (str) => str.replace(/^\s+/gm, "").trim();
+const dedent = (str: string) => str.replace(/^\s+/gm, "").trim();
 
-export function prompts(server) {
+export function prompts(server: McpServer) {
 
     server.registerPrompt(
         "create-project",

@@ -1,16 +1,18 @@
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp";
 
+export const ResourceNames = [
+    "role-permissions",
+    "xp-and-gamification-rules",
+    "mood-values",
+    "auction-rules",
+] as const;
 
-export function resources(server) {
+type ResourceName = typeof ResourceNames[number];
 
-    server.registerResource(
-        "role-permissions",
-        "vynce://resources/role-permissions",
-        { description: "OWNER, ADMIN, MEMBER permissions and restrictions" },
-        async () => ({
-            contents: [{
-                uri: "vynce://resources/role-permissions",
-                text: `
-# Vynce Role Permissions
+const ResourceContent: Record<ResourceName, { description: string, text: string }> = {
+    "role-permissions": {
+        description: "OWNER, ADMIN, MEMBER permissions and restrictions",
+        text: `# Vynce Role Permissions
 
 Vynce has three roles per project: OWNER, ADMIN, and MEMBER.
 
@@ -76,20 +78,11 @@ Vynce has three roles per project: OWNER, ADMIN, and MEMBER.
 - Only the task assignee can close an auction or take it off market
 - OWNER cannot be removed or demoted by anyone except through voluntary ownership transfer
 - Ownership transfer requires the ADMIN to explicitly accept
-- Project deletion requires OWNER role and zero other members
-            `}]
-        })
-    );
-
-    server.registerResource(
-        "xp-and-gamification-rules",
-        "vynce://resources/xp-and-gamification-rules",
-        { description: "XP, ETH bounty system, mood multipliers, motivation scoring, and weekly leaderboard rules" },
-        async () => ({
-            contents: [{
-                uri: "vynce://resources/xp-and-gamification-rules",
-                text: `
-# Vynce XP & Gamification Rules
+- Project deletion requires OWNER role and zero other members`
+    },
+    "xp-and-gamification-rules": {
+        description: "XP, ETH bounty system, mood multipliers, motivation scoring, and weekly leaderboard rules",
+        text: `# Vynce XP & Gamification Rules
 
 ---
 
@@ -162,20 +155,11 @@ Example: 10 ETH assigned to an ANGRY assignee → 15 ETH calculated reward
 - Only the assignee can start/stop the timer
 - Timer tracks total worktime in seconds
 - Each stop session adds motivation points based on minutes worked × 2 × difficulty
-- Timer is automatically stopped on task submission
-            `}]
-        })
-    );
-
-    server.registerResource(
-        "mood-values",
-        "vynce://resources/mood-values",
-        { description: "Valid mood values, their ETH multipliers on task creation and restoration, and usage guidance" },
-        async () => ({
-            contents: [{
-                uri: "vynce://resources/mood-values",
-                text: `
-# Vynce Mood Values
+- Timer is automatically stopped on task submission`
+    },
+    "mood-values": {
+        description: "Valid mood values, their ETH multipliers on task creation and restoration, and usage guidance",
+        text: `# Vynce Mood Values
 
 Valid mood values for a user in Vynce:
 
@@ -202,20 +186,11 @@ Valid mood values for a user in Vynce:
 
 ## Usage
 
-When creating or restoring a task, always call \`get-user-by-id\` on the assignee first to check their current mood. This tells you what the calculated reward will be before committing.
-            `}]
-        })
-    );
-
-    server.registerResource(
-        "auction-rules",
-        "vynce://resources/auction-rules",
-        { description: "Auction lifecycle, bidding rules, timing constraints, winner selection, and cancellation rules" },
-        async () => ({
-            contents: [{
-                uri: "vynce://resources/auction-rules",
-                text: `
-# Vynce Auction & Marketplace Rules
+When creating or restoring a task, always call \`get-user-by-id\` on the assignee first to check their current mood. This tells you what the calculated reward will be before committing.`
+    },
+    "auction-rules": {
+        description: "Auction lifecycle, bidding rules, timing constraints, winner selection, and cancellation rules",
+        text: `# Vynce Auction & Marketplace Rules
 
 ---
 
@@ -280,9 +255,26 @@ A task assignee can put their assigned task on the marketplace for bidding. Othe
 - biddingEndsAt = endsAt − 2 days (automatic)
 - Assignee cannot bid on own task
 - Only assignee can open, close, or cancel an auction
-- Lowest bid wins; earliest submission wins ties
-            `}]
-        })
-    );
+- Lowest bid wins; earliest submission wins ties`
+    }
+}
 
+export function getResourceText(resource: ResourceName): string {
+    return ResourceContent[resource].text;
+}
+
+export function resources(server: McpServer) {
+    for (const [name, resource] of Object.entries(ResourceContent)) {
+        server.registerResource(
+            name,
+            `vynce://resources/${name}`,
+            { description: resource.description },
+            async () => ({
+                contents: [{
+                    uri: `vynce://resources/${name}`,
+                    text: resource.text
+                }]
+            })
+        );
+    }
 }

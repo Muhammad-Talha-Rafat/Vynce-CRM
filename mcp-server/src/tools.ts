@@ -1,9 +1,49 @@
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp";
 import { z } from "zod";
 import { authToken, BASE, setAuthToken } from "./config.js";
-import { read } from "./client/index.js";
+import { getResourceText, ResourceNames } from "./resources.js";
 
+type API_Fn = (
+    method: "GET" | "POST" | "PATCH" | "DELETE",
+    path: string,
+    body?: Record<string, unknown>
+) => Promise<{
+    content: { type: "text", text: string }[]
+}>;
 
-export function tools(server, api) {
+const LoginToken = z.object({
+    token: z.string().optional()
+}).loose();
+
+interface ApiResponseShape {
+    [key: string]: unknown,
+    content: [{
+        type: "text",
+        text: string
+    }],
+    isError?: boolean
+}
+
+async function FetchApiResponse(url: string, init: RequestInit): Promise<ApiResponseShape> {
+    let res: Response;
+    try {
+        res = await fetch(url, init);
+    } catch (err) {
+        const message = err instanceof Error ? err.message : "Unknown network error";
+        return {
+            content: [{ type: "text", text: `Request failed: ${message}` }],
+            isError: true
+        }
+    }
+    const data = await res.json();
+    return {
+        content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        isError: !res.ok
+    };
+
+}
+
+export function tools(server: McpServer, api: API_Fn) {
 
     // ─── AUTH ─────────────────────────────────────────────────────────────────────
 
@@ -16,19 +56,22 @@ export function tools(server, api) {
                 password: z.string()
             })
         },
-        async ({ email, password }) => {
-            const res = await fetch(`${BASE}/auth/login`, {
+        async (args) => {
+            const res = await FetchApiResponse(`${BASE}/auth/login`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password })
+                body: JSON.stringify(args)
             });
-            const data = await res.json();
+
+            if (res.isError) {
+                return res;
+            }
+
+            const data = LoginToken.parse(JSON.parse(res.content[0].text));
             if (data.token) setAuthToken(data.token);
+
             return {
-                content: [{
-                    type: "text",
-                    text: JSON.stringify(data, null, 2)
-                }]
+                content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
             };
         }
     );
@@ -44,19 +87,22 @@ export function tools(server, api) {
                 password: z.string()
             })
         },
-        async ({ email, firstname, lastname, password }) => {
-            const res = await fetch(`${BASE}/auth/signup`, {
+        async (args) => {
+            const res = await FetchApiResponse(`${BASE}/auth/signup`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, firstname, lastname, password })
+                body: JSON.stringify(args)
             });
-            const data = await res.json();
+
+            if (res.isError) {
+                return res;
+            }
+
+            const data = LoginToken.parse(JSON.parse(res.content[0].text));
             if (data.token) setAuthToken(data.token);
+
             return {
-                content: [{
-                    type: "text",
-                    text: JSON.stringify(data, null, 2)
-                }]
+                content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
             };
         }
     );
@@ -67,7 +113,6 @@ export function tools(server, api) {
         "get-me",
         {
             description: "Gets the currently logged in user.",
-            inputSchema: z.object({})
         },
         async () => api("GET", "/users/user")
     );
@@ -118,18 +163,15 @@ export function tools(server, api) {
                 form.append("image", blob, "profile.png");
             }
 
-            const res = await fetch(`${BASE}/users/user`, {
+            const res = await FetchApiResponse(`${BASE}/users/user`, {
                 method: "PATCH",
                 headers: { Authorization: `Bearer ${authToken}` },
                 body: form
             });
+            const data: unknown = JSON.parse(res.content[0].text);
 
-            const data = await res.json();
             return {
-                content: [{
-                    type: "text",
-                    text: JSON.stringify(data, null, 2)
-                }]
+                content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
             };
         }
     );
@@ -142,7 +184,7 @@ export function tools(server, api) {
                 mood: z.enum(["ANGRY", "CRYING", "SAD", "NORMAL", "OKAY", "HAPPY", "ECSTATIC"])
             })
         },
-        async ({ mood }) => api("PATCH", "/users/user/mood", { mood })
+        async (args) => api("PATCH", "/users/user/mood", args)
     );
 
     server.registerTool(
@@ -154,14 +196,13 @@ export function tools(server, api) {
                 newPassword: z.string()
             })
         },
-        async ({ currentPassword, newPassword }) => api("PATCH", "/users/user/change-password", { currentPassword, newPassword })
+        async (args) => api("PATCH", "/users/user/change-password", args)
     );
 
     server.registerTool(
         "delete-user",
         {
             description: "Deletes the current user. If it can't, explain the reason briefly.",
-            inputSchema: z.object({})
         },
         async () => api("DELETE", "/users/user")
     );
@@ -190,28 +231,23 @@ export function tools(server, api) {
                 form.append("image", blob, "profile.png");
             }
 
-            const res = await fetch(`${BASE}/projects`, {
+            const res = await FetchApiResponse(`${BASE}/projects`, {
                 method: "POST",
                 headers: { Authorization: `Bearer ${authToken}` },
                 body: form
             });
+            const data: unknown = JSON.parse(res.content[0].text);
 
-            const data = await res.json();
             return {
-                content: [{
-                    type: "text",
-                    text: JSON.stringify(data, null, 2)
-                }]
+                content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
             };
         }
-
     );
 
     server.registerTool(
         "get-user-projects",
         {
             description: "Gets the projects the current user is enrolled in.",
-            inputSchema: z.object({})
         },
         async () => api("GET", "/projects/user")
     );
@@ -250,18 +286,15 @@ export function tools(server, api) {
                 form.append("image", blob, "project.png");
             }
 
-            const res = await fetch(`${BASE}/projects/project/${projectId}`, {
+            const res = await FetchApiResponse(`${BASE}/projects/project/${projectId}`, {
                 method: "PATCH",
                 headers: { Authorization: `Bearer ${authToken}` },
                 body: form
             });
+            const data: unknown = JSON.parse(res.content[0].text);
 
-            const data = await res.json();
             return {
-                content: [{
-                    type: "text",
-                    text: JSON.stringify(data, null, 2)
-                }]
+                content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
             };
         }
     );
@@ -287,7 +320,7 @@ export function tools(server, api) {
                 projectId: z.string()
             })
         },
-        async ({ projectId }) => api("DELETE", "/memberships/leave", { projectId })
+        async (args) => api("DELETE", "/memberships/leave", args)
     );
 
     server.registerTool(
@@ -299,14 +332,13 @@ export function tools(server, api) {
                 memberIds: z.array(z.string())
             })
         },
-        async ({ projectId, memberIds }) => api("DELETE", "/memberships/remove", { projectId, memberIds })
+        async (args) => api("DELETE", "/memberships/remove", args)
     );
 
     server.registerTool(
         "get-user-projects-with-roles",
         {
             description: "Gets only current user projects with role.",
-            inputSchema: z.object({})
         },
         async () => api("GET", "/memberships/user")
     );
@@ -331,7 +363,7 @@ export function tools(server, api) {
                 adminId: z.string()
             })
         },
-        async ({ projectId, adminId }) => api("POST", "/memberships/transfer-ownership/offer", { projectId, adminId })
+        async (args) => api("POST", "/memberships/transfer-ownership/offer", args)
     );
 
     server.registerTool(
@@ -353,7 +385,7 @@ export function tools(server, api) {
                 offerId: z.string()
             })
         },
-        async ({ offerId }) => api("PATCH", "/memberships/transfer-ownership/accept", { offerId })
+        async (args) => api("PATCH", "/memberships/transfer-ownership/accept", args)
     );
 
     server.registerTool(
@@ -364,7 +396,7 @@ export function tools(server, api) {
                 offerId: z.string()
             })
         },
-        async ({ offerId }) => api("PATCH", "/memberships/transfer-ownership/decline", { offerId })
+        async (args) => api("PATCH", "/memberships/transfer-ownership/decline", args)
     );
 
     server.registerTool(
@@ -375,7 +407,7 @@ export function tools(server, api) {
                 membershipId: z.string()
             })
         },
-        async ({ membershipId }) => api("PATCH", "/memberships/change-role/promote", { membershipId })
+        async (args) => api("PATCH", "/memberships/change-role/promote", args)
     );
 
     server.registerTool(
@@ -386,7 +418,7 @@ export function tools(server, api) {
                 membershipId: z.string()
             })
         },
-        async ({ membershipId }) => api("PATCH", "/memberships/change-role/demote", { membershipId })
+        async (args) => api("PATCH", "/memberships/change-role/demote", args)
     );
 
     // ─── INVITATIONS ──────────────────────────────────────────────────────────────
@@ -400,7 +432,7 @@ export function tools(server, api) {
                 projectId: z.string(),
             })
         },
-        async ({ email, projectId }) => api("POST", "/invitations/invite", { email, projectId })
+        async (args) => api("POST", "/invitations/invite", args)
     );
 
     server.registerTool(
@@ -422,7 +454,7 @@ export function tools(server, api) {
                 invitationId: z.string()
             })
         },
-        async ({ invitationId }) => api("PATCH", "/invitations/accept", { invitationId })
+        async (args) => api("PATCH", "/invitations/accept", args)
     );
 
     server.registerTool(
@@ -433,7 +465,7 @@ export function tools(server, api) {
                 invitationId: z.string()
             })
         },
-        async ({ invitationId }) => api("PATCH", "/invitations/decline", { invitationId })
+        async (args) => api("PATCH", "/invitations/decline", args)
     );
 
     // ─── BOARDS ───────────────────────────────────────────────────────────────────
@@ -448,7 +480,7 @@ export function tools(server, api) {
                 color: z.string().optional()
             })
         },
-        async ({ projectId, name, color }) => api("POST", "/boards/board", { projectId, name, color })
+        async (args) => api("POST", "/boards/board", args)
     );
 
     server.registerTool(
@@ -473,7 +505,10 @@ export function tools(server, api) {
                 color: z.string().optional()
             })
         },
-        async ({ projectId, boardId, name, color }) => api("PATCH", `/boards/board/${boardId}`, { projectId, name, color })
+        async (args) => {
+            const { boardId, ...body } = args;
+            return api("PATCH", `/boards/board/${boardId}`, body);
+        }
     );
 
     server.registerTool(
@@ -486,7 +521,10 @@ export function tools(server, api) {
                 newPosition: z.number().min(0)
             })
         },
-        async ({ projectId, boardId, newPosition }) => api("PATCH", `/boards/move/${boardId}`, { projectId, newPosition })
+        async (args) => {
+            const { boardId, ...body } = args;
+            return api("PATCH", `/boards/move/${boardId}`, body);
+        }
     );
 
     server.registerTool(
@@ -513,19 +551,11 @@ export function tools(server, api) {
                 description: z.string().optional(),
                 assigneeId: z.string(),
                 dueDate: z.string().optional(),
-                ethereum: z.number().min(1).describe("User can put a minimum of 1 ETH and a maximum of how much he has."),
-                difficulty: z.number().min(1).max(5)
+                ethereum: z.number().int().min(1).describe("User can put a minimum of 1 ETH and a maximum of how much he has."),
+                difficulty: z.number().int().min(1).max(5)
             })
         },
-        async ({
-            projectId, boardId, title,
-            description, assigneeId, dueDate,
-            ethereum, difficulty
-        }) => api("POST", "/tasks/create", {
-            projectId, boardId, title,
-            description, assigneeId, dueDate,
-            ethereum, difficulty
-        })
+        async (args) => api("POST", "/tasks/create", args)
     );
 
     server.registerTool(
@@ -559,7 +589,7 @@ export function tools(server, api) {
                 title: z.string()
             })
         },
-        async ({ taskId, title }) => api("PATCH", `/tasks/task/${taskId}/editTitle`, { title })
+        async (args) => api("PATCH", `/tasks/task/${args.taskId}/editTitle`, { title: args.title })
     );
 
     server.registerTool(
@@ -571,7 +601,7 @@ export function tools(server, api) {
                 assigneeId: z.string()
             })
         },
-        async ({ taskId, assigneeId }) => api("PATCH", `/tasks/task/${taskId}/reassign`, { assigneeId })
+        async (args) => api("PATCH", `/tasks/task/${args.taskId}/reassign`, { assigneeId: args.assigneeId })
     );
 
     server.registerTool(
@@ -583,7 +613,7 @@ export function tools(server, api) {
                 dueDate: z.string().optional().describe("This must be greater than today or remove the due date.")
             })
         },
-        async ({ taskId, dueDate }) => api("PATCH", `/tasks/task/${taskId}/editDueDate`, { dueDate })
+        async (args) => api("PATCH", `/tasks/task/${args.taskId}/editDueDate`, { dueDate: args.dueDate })
     );
 
     server.registerTool(
@@ -595,7 +625,7 @@ export function tools(server, api) {
                 boardId: z.string()
             })
         },
-        async ({ taskId, boardId }) => api("PATCH", `/tasks/task/${taskId}/changeStatus`, { boardId })
+        async (args) => api("PATCH", `/tasks/task/${args.taskId}/changeStatus`, { boardId: args.boardId })
     );
 
     server.registerTool(
@@ -630,7 +660,10 @@ export function tools(server, api) {
                 mood: z.enum(["ANGRY", "CRYING", "SAD", "NORMAL", "OKAY", "HAPPY", "ECSTATIC"]).describe("The current mood of the assignee, used to calculate the new reward multiplier.")
             })
         },
-        async ({ taskId, bounty, mood }) => api("PATCH", `/tasks/task/${taskId}/changeBounty`, { bounty, mood })
+        async (args) => {
+            const { taskId, ...body } = args;
+            return api("PATCH", `/tasks/task/${taskId}/changeBounty`, body);
+        }
     );
 
     server.registerTool(
@@ -642,7 +675,7 @@ export function tools(server, api) {
                 difficulty: z.number().min(1).max(5)
             })
         },
-        async ({ taskId, difficulty }) => api("PATCH", `/tasks/task/${taskId}/changeDifficulty`, { difficulty })
+        async (args) => api("PATCH", `/tasks/task/${args.taskId}/changeDifficulty`, { difficulty: args.difficulty })
     );
 
     server.registerTool(
@@ -654,7 +687,7 @@ export function tools(server, api) {
                 description: z.string().optional()
             })
         },
-        async ({ taskId, description }) => api("PATCH", `/tasks/task/${taskId}/editDescription`, { description })
+        async (args) => api("PATCH", `/tasks/task/${args.taskId}/editDescription`, { description: args.description })
     );
 
     server.registerTool(
@@ -666,7 +699,7 @@ export function tools(server, api) {
                 comment: z.string()
             })
         },
-        async ({ taskId, comment }) => api("PATCH", `/tasks/task/${taskId}/addComment`, { comment })
+        async (args) => api("PATCH", `/tasks/task/${args.taskId}/addComment`, { comment: args.comment })
     );
 
     server.registerTool(
@@ -677,7 +710,7 @@ export function tools(server, api) {
                 taskId: z.string(),
             })
         },
-        async ({ taskId }) => api("PATCH", "/tasks/task/submit", { taskId })
+        async (args) => api("PATCH", "/tasks/task/submit", args)
     );
 
     server.registerTool(
@@ -688,7 +721,7 @@ export function tools(server, api) {
                 taskId: z.string(),
             })
         },
-        async ({ taskId }) => api("PATCH", "/tasks/task/return", { taskId })
+        async (args) => api("PATCH", "/tasks/task/return", args)
     );
 
     // ─── ARCHIVES ─────────────────────────────────────────────────────────────────
@@ -712,7 +745,7 @@ export function tools(server, api) {
                 taskId: z.string(),
             })
         },
-        async ({ taskId }) => api("PATCH", "/archives/task/close", { taskId })
+        async (args) => api("PATCH", "/archives/task/close", args)
     );
 
     server.registerTool(
@@ -723,7 +756,7 @@ export function tools(server, api) {
                 taskId: z.string(),
             })
         },
-        async ({ taskId }) => api("PATCH", "/archives/task/archive", { taskId })
+        async (args) => api("PATCH", "/archives/task/archive", args)
     );
 
     server.registerTool(
@@ -736,20 +769,15 @@ export function tools(server, api) {
                 title: z.string(),
                 assigneeId: z.string(),
                 dueDate: z.string().optional(),
-                ethereum: z.number().min(1).describe("User can put a minimum of 1 ETH and a maximum of how much he has."),
-                difficulty: z.number().min(1).max(5),
+                ethereum: z.number().int().min(1).describe("User can put a minimum of 1 ETH and a maximum of how much he has."),
+                difficulty: z.number().int().min(1).max(5),
                 description: z.string().optional()
             })
         },
-        async ({
-            taskId, boardId, title,
-            assigneeId, dueDate, ethereum,
-            difficulty, description
-        }) => api("POST", `/archives/restore/${taskId}`, {
-            boardId, title,
-            assigneeId, dueDate, ethereum,
-            difficulty, description
-        })
+        async (args) => {
+            const { taskId, ...body } = args;
+            return api("POST", `/archives/restore/${taskId}`, body);
+        }
     );
 
     server.registerTool(
@@ -772,7 +800,7 @@ export function tools(server, api) {
                 taskIds: z.array(z.string()),
             })
         },
-        async ({ projectId, taskIds }) => api("DELETE", "/archives/tasks", { projectId, taskIds })
+        async (args) => api("DELETE", "/archives/tasks", args)
     );
 
     // ─── MARKETS ──────────────────────────────────────────────────────────────────
@@ -786,7 +814,7 @@ export function tools(server, api) {
                 endsAt: z.string()
             })
         },
-        async ({ taskId, endsAt }) => api("POST", `/auction/task/${taskId}`, { endsAt })
+        async (args) => api("POST", `/auction/task/${args.taskId}`, { endsAt: args.endsAt })
     );
 
     server.registerTool(
@@ -820,7 +848,7 @@ export function tools(server, api) {
                 amount: z.number().min(1)
             })
         },
-        async ({ taskId, amount }) => api("PATCH", `/auction/task/${taskId}`, { amount })
+        async (args) => api("PATCH", `/auction/task/${args.taskId}`, { amount: args.amount })
     );
 
     server.registerTool(
@@ -832,7 +860,7 @@ export function tools(server, api) {
                 winnerId: z.string()
             })
         },
-        async ({ taskId, winnerId }) => api("PATCH", `/auction/task/${taskId}/close`, { winnerId })
+        async (args) => api("PATCH", `/auction/task/${args.taskId}/close`, { winnerId: args.winnerId })
     );
 
     server.registerTool(
@@ -869,7 +897,6 @@ export function tools(server, api) {
         "get-inbox",
         {
             description: "Gets all notifications/mails for the logged-in user.",
-            inputSchema: z.object({})
         },
         async () => api("GET", "/inbox/user")
     );
@@ -882,7 +909,7 @@ export function tools(server, api) {
                 mailId: z.string()
             })
         },
-        async ({ mailId }) => api("PATCH", "/inbox/read", { mailId })
+        async (args) => api("PATCH", "/inbox/read", args)
     );
 
     server.registerTool(
@@ -893,7 +920,7 @@ export function tools(server, api) {
                 selected: z.array(z.string()).describe("Array of notification IDs to mark as read.")
             })
         },
-        async ({ selected }) => api("PATCH", "/inbox/read-multiple", { selected })
+        async (args) => api("PATCH", "/inbox/read-multiple", args)
     );
 
     server.registerTool(
@@ -904,7 +931,7 @@ export function tools(server, api) {
                 selected: z.array(z.string()).describe("Array of notification IDs to delete.")
             })
         },
-        async ({ selected }) => api("PATCH", "/inbox/delete", { selected })
+        async (args) => api("PATCH", "/inbox/delete", args)
     );
 
     // ─── CHATS ────────────────────────────────────────────────────────────────────
@@ -913,7 +940,6 @@ export function tools(server, api) {
         "get-chats",
         {
             description: "Gets all chats for the logged-in user.",
-            inputSchema: z.object({})
         },
         async () => api("GET", "/messages/user")
     );
@@ -927,7 +953,7 @@ export function tools(server, api) {
                 content: z.string().optional().describe("The message content to send.")
             })
         },
-        async ({ userId, content }) => api("POST", `/messages/user/${userId}`, { content })
+        async (args) => api("POST", `/messages/user/${args.userId}`, { content: args.content })
     );
 
     server.registerTool(
@@ -954,20 +980,18 @@ export function tools(server, api) {
 
     // ─── RESOURCES ────────────────────────────────────────────────────────────────
 
-server.registerTool(
-    "read-resource",
-    {
-        description: "Reads a Vynce documentation resource by name. Available resources: role-permissions, xp-and-gamification-rules, mood-values, auction-rules.",
-        inputSchema: z.object({
-            name: z.enum(["role-permissions", "xp-and-gamification-rules", "mood-values", "auction-rules"])
-        })
-    },
-    async ({ name }) => {
-        const text = await read(`vynce://resources/${name}`);
-        return {
-            content: [{ type: "text", text }]
-        };
-    }
-);
+    server.registerTool(
+        "read-resource",
+        {
+            description: "Reads a Vynce documentation resource by name. Available resources: role-permissions, xp-and-gamification-rules, mood-values, auction-rules.",
+            inputSchema: z.object({
+                name: z.enum(ResourceNames)
+            })
+        },
+        async ({ name }) => {
+            const text = getResourceText(name);
+            return { content: [{ type: "text", text }] };
+        }
+    );
 
 }

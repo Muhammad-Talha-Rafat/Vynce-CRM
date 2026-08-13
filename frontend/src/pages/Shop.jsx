@@ -126,18 +126,17 @@ function ShopCard({ item, onClick, owned }) {
 
             <div className={styles.cardFooter}>
                 <div className={styles.priceRow}>
-                    <img src={coin_svg} alt="ETH" className={styles.coinIcon} />
+                    <img src={coin_svg} alt="" className={styles.coinIcon} />
                     <span className={`${styles.priceValue} ${styles[`priceValue_${item.accent}`]}`}>
                         {item.price}
                     </span>
                     <span className={styles.priceCurrency}>ETH</span>
                 </div>
-                <button
+                <span
                     className={`${styles.buyBtn} ${styles[`buyBtn_${item.accent}`]} ${owned ? styles.buyBtnOwned : ""}`}
-                    tabIndex={-1}
                 >
                     {owned ? "OWNED" : hovered ? "REDEEM →" : "REDEEM"}
-                </button>
+                </span>
             </div>
         </div>
     );
@@ -156,12 +155,11 @@ function EthPackCard({ pack, onBuy, purchased }) {
         >
             <div className={styles.cardNoise} />
 
-            {pack.featured && (
-                <span className={styles.ethRibbon}>BEST VALUE</span>
-            )}
-
             {/* left: amount */}
             <div className={styles.ethLeft}>
+                {pack.featured && (
+                    <span className={styles.ethBestBadge}>BEST VALUE</span>
+                )}
                 <div className={styles.ethAmountRow}>
                     <img src={coin_svg} alt="" className={styles.ethCoinBig} />
                     <span className={styles.ethAmount}>{pack.eth}</span>
@@ -179,30 +177,29 @@ function EthPackCard({ pack, onBuy, purchased }) {
                     <span className={styles.ethPkr}>₨{pack.pkr.toLocaleString()}</span>
                     <span className={styles.ethPerUnit}>₨{perEth} / ETH</span>
                 </div>
-                <button
+                <span
                     className={`${styles.ethBuyBtn} ${pack.featured ? styles.ethBuyBtnFeatured : ""} ${purchased ? styles.ethBuyBtnPurchased : ""}`}
-                    tabIndex={-1}
                 >
                     {purchased
                         ? "PURCHASED"
                         : hovered
-                        ? "BUY NOW →"
-                        : "BUY NOW"}
-                </button>
+                            ? "BUY NOW →"
+                            : "BUY NOW"}
+                </span>
             </div>
         </div>
     );
 }
 
 function Shop() {
-    const [owned, setOwned]         = useState([]);
-    const [flash, setFlash]         = useState(null);
+    const [owned, setOwned] = useState([]);
+    const [flash, setFlash] = useState(null);
     const [purchased, setPurchased] = useState([]);
-    const [ethFlash, setEthFlash]   = useState(null);
+    const [ethFlash, setEthFlash] = useState(null);
 
     useEffect(() => {
         const link = document.querySelector("link[rel='icon']");
-        link.href = favicon;
+        if (link) link.href = favicon;
         document.title = "Vynce | Shop";
     }, []);
 
